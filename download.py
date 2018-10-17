@@ -6,20 +6,42 @@ import argparse
 import os
 import os.path
 
-def main(url, fileType, todir):
+def main(url, fileType, todir, debug=False):
   website = urllib.request.urlopen(url)
+  coding = re.search('charset=([\w.-]+)',website.headers._headers[0][1]).group(1)
   html=website.read()
-  pattern = re.compile('href="(.*%s)"'%fileType)
-  files=re.findall(pattern, html.decode('utf-8'))
-  for file in files:
-    filepath = os.path.join(todir, file)
-    fullLink = urllib.parse.urljoin(url, file)
-    try:
-      urllib.request.urlretrieve(fullLink, filepath)
-    except Exception as e:
-      print(e)
-      print("Download file %s failed."%file)
-#  print(links)
+  strs = html.decode(coding)
+  pattern0 = re.compile('(https?://[/\w.-]+%s)'%fileType)
+  pattern1 = re.compile('href="([\w.-]+%s)"'%fileType)
+  fileUrls=re.findall(pattern0, strs)
+  hyperFiles=re.findall(pattern1, strs)
+  if debug:
+    for fileUrl in fileUrls:
+      filename = fileUrl.split('/')[-1]
+      print("fileUrl is %s, and filename is %s."%(fileUrl, filename))
+      print('\n')
+    for filename in hyperFiles:
+      fileUrl = urllib.parse.urljoin(url, filename)
+      print("fileUrl is %s, and filename is %s."%(fileUrl, filename))
+      print('\n')
+    return
+  else:
+    for filename in hyperFiles:
+      fileUrl = urllib.parse.urljoin(url, filename)
+      fileUrls.append(fileUrl)
+    urlSet = set(fileUrls)
+    total = len(urlSet)
+    num=0
+    for fileUrl in urlSet:
+      filename = fileUrl.split('/')[-1]
+      filepath = os.path.join(todir, filename)
+      num+=1
+      try:
+        urllib.request.urlretrieve(fileUrl, filepath)
+        print("%d/%d is downloaded."%(num,total))
+      except Exception as e:
+        print(e)
+        print("Download file %s failed."%filename)
 
 
 if __name__=="__main__":
